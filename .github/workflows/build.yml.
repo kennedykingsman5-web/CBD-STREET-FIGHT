@@ -1,0 +1,68 @@
+name: Build CBD Street Fight APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Install Dependencies
+      run: |
+        npm init -y
+        npm install --legacy-peer-deps @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+      
+    - name: Create Web Folder
+      run: |
+        mkdir www
+        cp index.html www/index.html
+        cp game.js www/game.js
+        echo '{"appId":"com.cbd.fight","appName":"CBD Street Fight","webDir":"www"}' > capacitor.config.json
+      
+    - name: Create Android Project
+      run: npx cap add android
+      
+    - name: Patch Android SDK
+      run: |
+        sed -i 's/compileSdkVersion = .*/compileSdkVersion = 35/g' android/variables.gradle
+        sed -i 's/targetSdkVersion = .*/targetSdkVersion = 35/g' android/variables.gradle
+        sed -i 's/minSdkVersion = .*/minSdkVersion = 23/g' android/variables.gradle
+        sed -i "s/classpath 'com.android.tools.build:gradle:.*'/classpath 'com.android.tools.build:gradle:8.6.0'/g" android/build.gradle
+        sed -i 's/gradle-.*-all.zip/gradle-8.9-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+
+    - name: Sync Web Code to Android
+      run: npx cap sync android
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+        
+    - name: Build APK
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleDebug
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: "v${{ github.run_number }}"
+        name: "CBD Street Fight Build ${{ github.run_number }}"
+        files: android/app/build/outputs/apk/debug/app-debug.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
