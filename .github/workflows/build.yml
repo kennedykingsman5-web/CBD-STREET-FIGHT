@@ -42,6 +42,7 @@ jobs:
         sed -i 's/minSdkVersion = .*/minSdkVersion = 23/g' android/variables.gradle
         sed -i "s/classpath 'com.android.tools.build:gradle:.*'/classpath 'com.android.tools.build:gradle:8.6.0'/g" android/build.gradle
         sed -i 's/gradle-.*-all.zip/gradle-8.9-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+        sed -i 's/android:screenOrientation="portrait"/android:screenOrientation="landscape"/g' android/app/src/main/AndroidManifest.xml
 
     - name: Sync Web Code to Android
       run: npx cap sync android
