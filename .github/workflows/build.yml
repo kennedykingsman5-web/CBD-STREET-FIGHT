@@ -35,14 +35,18 @@ jobs:
     - name: Create Android Project
       run: npx cap add android
       
-    - name: Patch Android SDK
+    - name: Patch Android SDK and Force Landscape
       run: |
+        # Patch SDK versions
         sed -i 's/compileSdkVersion = .*/compileSdkVersion = 35/g' android/variables.gradle
         sed -i 's/targetSdkVersion = .*/targetSdkVersion = 35/g' android/variables.gradle
         sed -i 's/minSdkVersion = .*/minSdkVersion = 23/g' android/variables.gradle
         sed -i "s/classpath 'com.android.tools.build:gradle:.*'/classpath 'com.android.tools.build:gradle:8.6.0'/g" android/build.gradle
         sed -i 's/gradle-.*-all.zip/gradle-8.9-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+
+        # FORCE LANDSCAPE AND FULLSCREEN
         sed -i 's/android:screenOrientation="portrait"/android:screenOrientation="landscape"/g' android/app/src/main/AndroidManifest.xml
+        sed -i 's/this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);/this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);/g' android/app/src/main/java/com/cbd/fight/MainActivity.java
 
     - name: Sync Web Code to Android
       run: npx cap sync android
