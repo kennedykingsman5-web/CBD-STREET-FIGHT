@@ -18,51 +18,27 @@ spotLight.castShadow = true;
 scene.add(spotLight);
 
 // Floor
-const floorGeo = new THREE.PlaneGeometry(50, 50);
-const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
-const floor = new THREE.Mesh(floorGeo, floorMat);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 }));
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
 
-// --- LOAD 3D CHARACTER ---
-let player;
-let mixer;
-let actions = {};
+// Player (Red Box)
+const player = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: 0xff2222 }));
+player.position.set(0, 1, 0);
+player.castShadow = true;
+scene.add(player);
 
-const loader = new THREE.GLTFLoader();
-// We are loading a free animated fighter model
-loader.load('https://threejs.org/examples/models/gltf/Soldier.glb', (gltf) => {
-    player = gltf.scene;
-    player.position.set(0, 0, 0);
-    player.traverse(n => { if(n.isMesh) n.castShadow = true; });
-    scene.add(player);
-
-    // Setup Animations (Idle, Run, Punch, Kick)
-    mixer = new THREE.AnimationMixer(player);
-    
-    // The Soldier model has specific animations built-in
-    const animations = gltf.animations;
-    actions.idle = mixer.clipAction(THREE.AnimationClip.findByName(animations, 'Idle'));
-    actions.run = mixer.clipAction(THREE.AnimationClip.findByName(animations, 'Run'));
-    actions.punch = mixer.clipAction(THREE.AnimationClip.findByName(animations, 'Punch'));
-    actions.kick = mixer.clipAction(THREE.AnimationClip.findByName(animations, 'Kick'));
-
-    actions.idle.play(); // Start with Idle
-});
-
-// Enemy (Blue Box for now)
+// Enemy (Blue Box)
 const enemy = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: 0x2222ff }));
 enemy.position.set(0, 1, -5);
 enemy.castShadow = true;
 scene.add(enemy);
 
-// --- CONTROLS ---
+// --- JOYSTICK LOGIC ---
 let joystickActive = false;
 let joystickStart = { x: 0, y: 0 };
 let moveVector = { x: 0, y: 0 };
-let isPunching = false;
-let isKicking = false;
 const joystickZone = document.getElementById('joystick');
 
 joystickZone.addEventListener('touchstart', (e) => {
@@ -87,55 +63,32 @@ joystickZone.addEventListener('touchmove', (e) => {
 joystickZone.addEventListener('touchend', () => {
   joystickActive = false;
   moveVector = { x: 0, y: 0 };
-  if(actions.run) actions.run.stop();
-  if(actions.idle) actions.idle.play();
-});
-
-// Punch Button
-document.getElementById('btn-punch').addEventListener('touchstart', () => {
-  if(!player) return;
-  actions.run.stop();
-  actions.punch.reset().play();
-  setTimeout(() => { actions.punch.stop(); actions.idle.play(); }, 500); // Punch for 0.5s
-});
-
-// Kick Button
-document.getElementById('btn-kick').addEventListener('touchstart', () => {
-  if(!player) return;
-  actions.run.stop();
-  actions.kick.reset().play();
-  setTimeout(() => { actions.kick.stop(); actions.idle.play(); }, 800); // Kick for 0.8s
 });
 
 // --- GAME LOOP ---
-const clock = new THREE.Clock();
-
 function animate() {
   requestAnimationFrame(animate);
-  const delta = clock.getDelta();
-  
-  if (mixer) mixer.update(delta);
 
-  if (player) {
-    // Move Player
-    if (moveVector.x !== 0 || moveVector.y !== 0) {
-      if(actions.idle) actions.idle.stop();
-      if(actions.run && !actions.run.isRunning()) actions.run.play();
-      
-      player.position.x += moveVector.x * 0.1;
-      player.position.z += moveVector.y * 0.1;
-      
-      const angle = Math.atan2(moveVector.x, moveVector.y);
-      player.rotation.y = angle;
-    }
-
-    // Camera follow
-    camera.position.x += (player.position.x - camera.position.x) * 0.1;
-    camera.position.z += (player.position.z + 8 - camera.position.z) * 0.1;
-    camera.lookAt(player.position.x, player.position.y + 2, player.position.z);
+  if (moveVector.x !== 0 || moveVector.y !== 0) {
+    player.position.x += moveVector.x * 0.1;
+    player.position.z += moveVector.y * 0.1;
+    const angle = Math.atan2(moveVector.x, moveVector.y);
+    player.rotation.y = angle;
   }
+
+  // Camera follow
+  camera.position.x += (player.position.x - camera.position.x) * 0.1;
+  camera.position.z += (player.position.z + 8 - camera.position.z) * 0.1;
+  camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
 
   renderer.render(scene, camera);
 }
-
 animate();
+
+// --- WELCOME SCREEN LOGIC ---
+document.getElementById('enter-btn').addEventListener('click', () => {
+  // Hide welcome screen
+  document.getElementById('welcome-screen').style.display = 'none';
+  // Show game controls
+  document.getElementById('ui-layer').style.display = 'flex';
+});
