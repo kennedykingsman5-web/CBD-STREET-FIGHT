@@ -1,3 +1,35 @@
+// --- AUTO UPDATER ---
+// This checks GitHub every time the app opens for a new version.
+async function checkForUpdates() {
+  try {
+    // 1. Get the version from GitHub
+    const response = await fetch('https://raw.githubusercontent.com/kennedykingsman5-wel/CBD-STREET-FIGHT/main/version.txt');
+    const latestVersion = await response.text();
+    
+    // 2. Get the version saved on the phone
+    const currentVersion = localStorage.getItem('cbd_version') || '1';
+
+    // 3. If GitHub has a newer version, download the new game.js!
+    if (latestVersion.trim() !== currentVersion) {
+      alert("New update found! Updating game...");
+      
+      const newGameCode = await fetch('https://raw.githubusercontent.com/kennedykingsman5-wel/CBD-STREET-FIGHT/main/game.js').then(r => r.text());
+      localStorage.setItem('cbd_game_code', newGameCode);
+      localStorage.setItem('cbd_version', latestVersion.trim());
+      
+      alert("Update complete! Restarting...");
+      window.location.reload();
+    } else {
+      // If no update, load the saved code
+      const savedCode = localStorage.getItem('cbd_game_code');
+      if (savedCode) {
+        eval(savedCode); // Run the saved game code
+      }
+    }
+  } catch (e) {
+    console.log("Offline mode or update failed.");
+  }
+}
 // Setup Scene
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x111111, 5, 30);
