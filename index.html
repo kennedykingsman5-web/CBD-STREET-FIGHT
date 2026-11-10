@@ -5,48 +5,59 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>CBD STREET FIGHT</title>
 <style>
-  body { margin: 0; overflow: hidden; background-color: #111; font-family: 'Arial Black', sans-serif; }
-  #game-container { width: 100vw; height: 100vh; }
+  body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial Black', sans-serif; color: white; }
+  #game-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
   
-  /* UI Overlay */
-  #ui-layer {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
-    padding: 20px; box-sizing: border-box;
+  /* The Welcome Screen */
+  #welcome-screen {
+    position: absolute; inset: 0; z-index: 100; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    background: url('https://images.unsplash.com/photo-1595590424283-b8f17842773f?q=80&w=1000&auto=format&fit=crop') center/cover;
   }
-  
-  .health-bar {
-    width: 40%; height: 20px; background: #333; border: 2px solid #fff; border-radius: 10px;
-    overflow: hidden; box-shadow: 0 0 10px rgba(255,0,0,0.5);
+  #welcome-screen::before {
+    content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.8); /* Dark overlay */
   }
-  .health-fill { height: 100%; width: 100%; background: #ff2222; transition: width 0.2s; }
+  .welcome-content { position: relative; z-index: 2; padding: 20px; }
+  .welcome-content h1 { font-size: 40px; color: #ff2222; text-shadow: 0 0 20px #ff0000; margin-bottom: 10px; }
+  .welcome-content p { font-size: 16px; color: #ccc; margin-bottom: 30px; }
   
+  #enter-btn {
+    padding: 15px 40px; font-size: 20px; font-weight: bold; color: white;
+    background: #ff2222; border: 2px solid #fff; border-radius: 10px;
+    box-shadow: 0 0 15px #ff0000; text-transform: uppercase;
+  }
+  #enter-btn:active { transform: scale(0.95); }
+
+  /* UI Overlay (Hidden at first) */
+  #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; z-index: 50; }
+  .health-bar { width: 40%; height: 20px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 0 10px rgba(255,0,0,0.5); }
+  .health-fill { height: 100%; width: 100%; background: #ff2222; }
   .top-ui { display: flex; justify-content: space-between; }
-  
-  /* On-Screen Controls */
   .controls { display: flex; justify-content: space-between; align-items: flex-end; pointer-events: auto; }
   .joystick-zone { width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); }
   .action-buttons { display: flex; gap: 15px; }
-  .action-btn {
-    width: 70px; height: 70px; border-radius: 50%; background: rgba(255, 50, 50, 0.6);
-    border: 3px solid #fff; color: #fff; font-weight: bold; font-size: 18px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .action-btn:active { background: rgba(255, 50, 50, 1); transform: scale(0.95); }
+  .action-btn { width: 70px; height: 70px; border-radius: 50%; background: rgba(255, 50, 50, 0.6); border: 3px solid #fff; color: #fff; font-weight: bold; font-size: 18px; display: flex; align-items: center; justify-content: center; }
 </style>
 </head>
 <body>
 
 <div id="game-container"></div>
 
+<!-- Welcome Screen -->
+<div id="welcome-screen">
+  <div class="welcome-content">
+    <h1>CBD STREET FIGHT</h1>
+    <p>Welcome to the arena. Are you ready?</p>
+    <button id="enter-btn">ENTER ARENA</button>
+  </div>
+</div>
+
+<!-- Game UI -->
 <div id="ui-layer">
-  <!-- Health Bars -->
   <div class="top-ui">
     <div class="health-bar"><div class="health-fill" id="player-health"></div></div>
     <div class="health-bar" style="transform: scaleX(-1);"><div class="health-fill" id="enemy-health"></div></div>
   </div>
-
-  <!-- Controls -->
   <div class="controls">
     <div class="joystick-zone" id="joystick"></div>
     <div class="action-buttons">
@@ -56,10 +67,9 @@
   </div>
 </div>
 
-<!-- Import Three.js -->
+<!-- Load Three.js locally so it's fast -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="game.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
 </body>
 </html>
