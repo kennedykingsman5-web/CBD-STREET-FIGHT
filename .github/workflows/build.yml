@@ -29,7 +29,6 @@ jobs:
       run: |
         mkdir www
         cp index.html www/index.html
-        cp game.js www/game.js
         echo '{"appId":"com.cbd.fight","appName":"CBD Street Fight","webDir":"www"}' > capacitor.config.json
       
     - name: Create Android Project
@@ -42,9 +41,7 @@ jobs:
         sed -i 's/minSdkVersion = .*/minSdkVersion = 23/g' android/variables.gradle
         sed -i "s/classpath 'com.android.tools.build:gradle:.*'/classpath 'com.android.tools.build:gradle:8.6.0'/g" android/build.gradle
         sed -i 's/gradle-.*-all.zip/gradle-8.9-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
-
-        # THIS IS THE EXACT FIX FOR LANDSCAPE MODE
-        sed -i 's/<activity android:name=".MainActivity"/<activity android:name=".MainActivity" android:screenOrientation="landscape" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"/g' android/app/src/main/AndroidManifest.xml
+        sed -i 's/<activity android:name=".MainActivity"/<activity android:name=".MainActivity" android:screenOrientation="landscape"/g' android/app/src/main/AndroidManifest.xml
 
     - name: Sync Web Code to Android
       run: npx cap sync android
