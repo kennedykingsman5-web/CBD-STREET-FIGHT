@@ -13,17 +13,16 @@
   .welcome-content h1 { font-size: 40px; color: #ff2222; text-shadow: 0 0 20px #ff0000; margin-bottom: 10px; }
   #enter-btn { padding: 15px 40px; font-size: 20px; font-weight: bold; color: white; background: #ff2222; border: 2px solid #fff; border-radius: 10px; box-shadow: 0 0 15px #ff0000; text-transform: uppercase; }
   #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; z-index: 50; }
-  .health-bar { width: 40%; height: 20px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 0 10px rgba(255,0,0,0.5); }
-  .health-fill { height: 100%; width: 100%; background: #ff2222; }
-  .top-ui { display: flex; justify-content: space-between; }
   .controls { display: flex; justify-content: space-between; align-items: flex-end; pointer-events: auto; }
   .joystick-zone { width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); }
   .action-buttons { display: flex; gap: 15px; }
   .action-btn { width: 70px; height: 70px; border-radius: 50%; background: rgba(255, 50, 50, 0.6); border: 3px solid #fff; color: #fff; font-weight: bold; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+  #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; color: #fff; display: none; z-index: 200; }
 </style>
 </head>
 <body>
 <div id="game-container"></div>
+<div id="loading">Loading City...</div>
 <div id="welcome-screen">
   <div class="welcome-content">
     <h1>CBD STREET FIGHT</h1>
@@ -50,10 +49,12 @@ let actions = {};
 let pedestrians = [];
 let police = null;
 let isGameOver = false;
+const clock = new THREE.Clock();
 
 document.getElementById('enter-btn').addEventListener('click', () => {
   document.getElementById('welcome-screen').style.display = 'none';
   document.getElementById('ui-layer').style.display = 'flex';
+  document.getElementById('loading').style.display = 'block';
   init3DGame();
 });
 
@@ -89,6 +90,8 @@ function init3DGame() {
   }
 
   const loader = new THREE.GLTFLoader();
+  
+  // LOAD REAL PLAYER CHARACTER (Soldier)
   loader.load('https://threejs.org/examples/models/gltf/Soldier.glb', (gltf) => {
     player = gltf.scene;
     player.position.set(0, 0, 0);
@@ -99,18 +102,32 @@ function init3DGame() {
     actions.run = mixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, 'Run'));
     actions.punch = mixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, 'Punch'));
     actions.idle.play();
+    
+    // Spawn Pedestrians ONLY after player loads
+    for(let i = 0; i < 5; i++) { spawnPedestrian(loader); }
+    document.getElementById('loading').style.display = 'none';
   });
 
-  for(let i = 0; i < 5; i++) { spawnPedestrian(); }
   animate();
 }
 
-function spawnPedestrian() {
-  const npc = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff }));
-  npc.position.set((Math.random() - 0.5) * 15, 1, -Math.random() * 50);
-  npc.speed = 0.02 + Math.random() * 0.03;
-  scene.add(npc);
-  pedestrians.push(npc);
+function spawnPedestrian(loader) {
+  // LOAD REAL NPC CHARACTER (Xbot)
+  loader.load('https://threejs.org/examples/models/gltf/Xbot.glb', (gltf) => {
+    const npc = gltf.scene;
+    npc.position.set((Math.random() - 0.5) * 15, 0, -Math.random() * 50);
+    npc.traverse(n => { if(n.isMesh) n.castShadow = true; });
+    npc.isPedestrian = true;
+    
+    // Animate NPC walking
+    const npcMixer = new THREE.AnimationMixer(npc);
+    const walkAction = npcMixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, 'walk'));
+    if(walkAction) walkAction.play();
+    npc.mixer = npcMixer;
+
+    scene.add(npc);
+    pedestrians.push(npc);
+  });
 }
 
 const joystickZone = document.getElementById('joystick');
@@ -147,20 +164,34 @@ document.getElementById('btn-punch').addEventListener('touchstart', () => {
     if(player.position.distanceTo(npc.position) < 3) {
       scene.remove(npc);
       pedestrians.splice(index, 1);
-      if(!police) {
-        police = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 1.2), new THREE.MeshStandardMaterial({ color: 0x0000ff }));
-        police.position.set(0, 1, -20);
-        scene.add(police);
-      }
+      if(!police) { spawnPolice(); }
     }
   });
 });
 
-const clock = new THREE.Clock();
+function spawnPolice() {
+  // LOAD REAL POLICE CHARACTER (RobotExpressive)
+  const loader = new THREE.GLTFLoader();
+  loader.load('https://threejs.org/examples/models/gltf/RobotExpressive.glb', (gltf) => {
+    police = gltf.scene;
+    police.position.set(0, 0, -20);
+    police.traverse(n => { if(n.isMesh) n.castShadow = true; });
+    police.scale.set(0.5, 0.5, 0.5);
+    
+    const policeMixer = new THREE.AnimationMixer(police);
+    const runAction = policeMixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, 'Running'));
+    if(runAction) runAction.play();
+    police.mixer = policeMixer;
+
+    scene.add(police);
+  });
+}
+
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
   if (mixer) mixer.update(delta);
+  
   if (player && !isGameOver) {
     if (moveVector.x !== 0 || moveVector.y !== 0) {
       if(actions.idle) actions.idle.stop();
@@ -169,15 +200,23 @@ function animate() {
       player.position.z += moveVector.y * 0.15;
       player.rotation.y = Math.atan2(moveVector.x, moveVector.y);
     }
+
     camera.position.x += (player.position.x - camera.position.x) * 0.1;
     camera.position.z += (player.position.z + 8 - camera.position.z) * 0.1;
     camera.lookAt(player.position.x, player.position.y + 2, player.position.z);
 
-    pedestrians.forEach(npc => { npc.position.z -= npc.speed; if(npc.position.z < -60) npc.position.z = 10; });
+    pedestrians.forEach(npc => {
+      if(npc.mixer) npc.mixer.update(delta);
+      npc.position.z -= 0.02;
+      npc.rotation.y = Math.PI; 
+      if(npc.position.z < -60) npc.position.z = 10;
+    });
 
     if(police) {
+      if(police.mixer) police.mixer.update(delta);
       police.position.x += (player.position.x - police.position.x) * 0.02;
       police.position.z += (player.position.z - police.position.z) * 0.02;
+      
       if(player.position.distanceTo(police.position) < 2) {
         isGameOver = true;
         alert("BUSTED! The police caught you.");
