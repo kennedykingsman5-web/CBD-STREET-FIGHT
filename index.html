@@ -7,29 +7,42 @@
 <style>
   body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial Black', sans-serif; color: white; }
   #game-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
+  
   #welcome-screen { position: absolute; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: url('https://images.unsplash.com/photo-1595590424283-b8f17842773f?q=80&w=1000&auto=format&fit=crop') center/cover; }
-  #welcome-screen::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.8); }
+  #welcome-screen::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.7); }
   .welcome-content { position: relative; z-index: 2; padding: 20px; }
   .welcome-content h1 { font-size: 40px; color: #ff2222; text-shadow: 0 0 20px #ff0000; margin-bottom: 10px; }
   #enter-btn { padding: 15px 40px; font-size: 20px; font-weight: bold; color: white; background: #ff2222; border: 2px solid #fff; border-radius: 10px; box-shadow: 0 0 15px #ff0000; text-transform: uppercase; }
+  
   #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; z-index: 50; }
+  .top-ui { display: flex; justify-content: flex-end; }
+  .wanted-stars { color: #ffcc00; font-size: 24px; text-shadow: 0 0 10px #ffcc00; opacity: 0; transition: opacity 0.3s; }
+  .wanted-stars.active { opacity: 1; }
+  
   .controls { display: flex; justify-content: space-between; align-items: flex-end; pointer-events: auto; }
-  .joystick-zone { width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); }
+  .joystick-zone { width: 130px; height: 130px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); backdrop-filter: blur(5px); }
   .action-buttons { display: flex; gap: 15px; }
-  .action-btn { width: 70px; height: 70px; border-radius: 50%; background: rgba(255, 50, 50, 0.6); border: 3px solid #fff; color: #fff; font-weight: bold; font-size: 18px; display: flex; align-items: center; justify-content: center; }
-  #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; color: #fff; display: none; z-index: 200; }
+  .action-btn { width: 75px; height: 75px; border-radius: 50%; background: rgba(255, 50, 50, 0.7); border: 3px solid #fff; color: #fff; font-weight: bold; font-size: 18px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(255,0,0,0.5); }
+  .action-btn:active { background: rgba(255, 50, 50, 1); transform: scale(0.95); }
+  
+  #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; color: #20e58a; display: none; z-index: 200; font-weight: bold; }
 </style>
 </head>
 <body>
 <div id="game-container"></div>
 <div id="loading">Loading City...</div>
+
 <div id="welcome-screen">
   <div class="welcome-content">
     <h1>CBD STREET FIGHT</h1>
     <button id="enter-btn">ENTER ARENA</button>
   </div>
 </div>
+
 <div id="ui-layer">
+  <div class="top-ui">
+    <div class="wanted-stars" id="wanted-stars">★ ★ ★</div>
+  </div>
   <div class="controls">
     <div class="joystick-zone" id="joystick"></div>
     <div class="action-buttons">
@@ -40,6 +53,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
 <script>
 let scene, camera, renderer, player, mixer;
 let moveVector = { x: 0, y: 0 };
@@ -48,10 +62,21 @@ let joystickStart = { x: 0, y: 0 };
 let actions = {};
 let pedestrians = [];
 let police = null;
+let wantedLevel = 0;
 let isGameOver = false;
 const clock = new THREE.Clock();
 
-document.getElementById('enter-btn').addEventListener('click', () => {
+// FORCE LANDSCAPE ON CLICK
+document.getElementById('enter-btn').addEventListener('click', async () => {
+  // Force landscape mode
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      await screen.orientation.lock('landscape');
+    }
+  } catch (e) {
+    console.log("Orientation lock not supported here");
+  }
+
   document.getElementById('welcome-screen').style.display = 'none';
   document.getElementById('ui-layer').style.display = 'flex';
   document.getElementById('loading').style.display = 'block';
@@ -60,51 +85,74 @@ document.getElementById('enter-btn').addEventListener('click', () => {
 
 function init3DGame() {
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x111111, 10, 80);
+  // Professional Sky Color
+  scene.background = new THREE.Color(0x1a1a2e); 
+  scene.fog = new THREE.Fog(0x1a1a2e, 20, 100);
+
   camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 4, 8);
+  camera.position.set(0, 5, 10);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   document.getElementById('game-container').appendChild(renderer.domElement);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambientLight);
-  const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+  // Professional Lighting
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+  hemiLight.position.set(0, 20, 0);
+  scene.add(hemiLight);
+
+  const dirLight = new THREE.DirectionalLight(0xffeedd, 1);
   dirLight.position.set(10, 20, 10);
   dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 2048;
+  dirLight.shadow.mapSize.height = 2048;
   scene.add(dirLight);
 
-  const road = new THREE.Mesh(new THREE.PlaneGeometry(20, 200), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+  // Street Lamp
+  const pointLight = new THREE.PointLight(0xffaa00, 1, 30);
+  pointLight.position.set(0, 8, -10);
+  scene.add(pointLight);
+
+  // Road
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(30, 200), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 }));
   road.rotation.x = -Math.PI / 2;
   road.receiveShadow = true;
   scene.add(road);
 
-  for(let i = 0; i < 10; i++) {
-    const h = Math.random() * 20 + 10;
-    const building = new THREE.Mesh(new THREE.BoxGeometry(15, h, 15), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
-    building.position.set(i % 2 === 0 ? -18 : 18, h/2, -i * 20);
+  // Sidewalks
+  const sideGeo = new THREE.BoxGeometry(5, 0.2, 200);
+  const sideMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+  const leftSide = new THREE.Mesh(sideGeo, sideMat); leftSide.position.set(-17.5, 0.1, 0); scene.add(leftSide);
+  const rightSide = new THREE.Mesh(sideGeo, sideMat); rightSide.position.set(17.5, 0.1, 0); scene.add(rightSide);
+
+  // Buildings
+  for(let i = 0; i < 15; i++) {
+    const h = Math.random() * 30 + 15;
+    const building = new THREE.Mesh(new THREE.BoxGeometry(12, h, 12), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+    building.position.set(i % 2 === 0 ? -22 : 22, h/2, -i * 15);
     building.castShadow = true;
+    building.receiveShadow = true;
     scene.add(building);
   }
 
   const loader = new THREE.GLTFLoader();
   
-  // LOAD REAL PLAYER CHARACTER (Soldier)
+  // PLAYER
   loader.load('https://threejs.org/examples/models/gltf/Soldier.glb', (gltf) => {
     player = gltf.scene;
     player.position.set(0, 0, 0);
     player.traverse(n => { if(n.isMesh) n.castShadow = true; });
     scene.add(player);
+    
     mixer = new THREE.AnimationMixer(player);
     actions.idle = mixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, 'Idle'));
     actions.run = mixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, 'Run'));
     actions.punch = mixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, 'Punch'));
     actions.idle.play();
     
-    // Spawn Pedestrians ONLY after player loads
-    for(let i = 0; i < 5; i++) { spawnPedestrian(loader); }
+    for(let i = 0; i < 4; i++) { spawnPedestrian(loader); }
     document.getElementById('loading').style.display = 'none';
   });
 
@@ -112,24 +160,24 @@ function init3DGame() {
 }
 
 function spawnPedestrian(loader) {
-  // LOAD REAL NPC CHARACTER (Xbot)
+  // Use Xbot which is a full human model, not a skeleton
   loader.load('https://threejs.org/examples/models/gltf/Xbot.glb', (gltf) => {
     const npc = gltf.scene;
-    npc.position.set((Math.random() - 0.5) * 15, 0, -Math.random() * 50);
+    npc.position.set((Math.random() - 0.5) * 12, 0, -Math.random() * 40 - 10);
     npc.traverse(n => { if(n.isMesh) n.castShadow = true; });
-    npc.isPedestrian = true;
     
-    // Animate NPC walking
     const npcMixer = new THREE.AnimationMixer(npc);
     const walkAction = npcMixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, 'walk'));
     if(walkAction) walkAction.play();
     npc.mixer = npcMixer;
+    npc.isPedestrian = true;
 
     scene.add(npc);
     pedestrians.push(npc);
   });
 }
 
+// CONTROLS
 const joystickZone = document.getElementById('joystick');
 joystickZone.addEventListener('touchstart', (e) => {
   joystickActive = true;
@@ -154,6 +202,7 @@ joystickZone.addEventListener('touchend', () => {
   if(actions.idle && actions.run) { actions.run.stop(); actions.idle.play(); }
 });
 
+// PUNCH & POLICE LOGIC
 document.getElementById('btn-punch').addEventListener('touchstart', () => {
   if(!player || !actions.punch || isGameOver) return;
   actions.run.stop(); actions.idle.stop();
@@ -164,19 +213,22 @@ document.getElementById('btn-punch').addEventListener('touchstart', () => {
     if(player.position.distanceTo(npc.position) < 3) {
       scene.remove(npc);
       pedestrians.splice(index, 1);
-      if(!police) { spawnPolice(); }
+      triggerWantedLevel();
     }
   });
 });
 
-function spawnPolice() {
-  // LOAD REAL POLICE CHARACTER (RobotExpressive)
+function triggerWantedLevel() {
+  if(wantedLevel > 0) return;
+  wantedLevel = 1;
+  document.getElementById('wanted-stars').classList.add('active');
+
   const loader = new THREE.GLTFLoader();
-  loader.load('https://threejs.org/examples/models/gltf/RobotExpressive.glb', (gltf) => {
+  loader.load('https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb', (gltf) => {
     police = gltf.scene;
-    police.position.set(0, 0, -20);
+    police.position.set(0, 0, -25);
     police.traverse(n => { if(n.isMesh) n.castShadow = true; });
-    police.scale.set(0.5, 0.5, 0.5);
+    police.scale.set(1.5, 1.5, 1.5);
     
     const policeMixer = new THREE.AnimationMixer(police);
     const runAction = policeMixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, 'Running'));
@@ -202,20 +254,21 @@ function animate() {
     }
 
     camera.position.x += (player.position.x - camera.position.x) * 0.1;
-    camera.position.z += (player.position.z + 8 - camera.position.z) * 0.1;
+    camera.position.z += (player.position.z + 10 - camera.position.z) * 0.1;
     camera.lookAt(player.position.x, player.position.y + 2, player.position.z);
 
     pedestrians.forEach(npc => {
       if(npc.mixer) npc.mixer.update(delta);
-      npc.position.z -= 0.02;
+      npc.position.z -= 0.03;
       npc.rotation.y = Math.PI; 
       if(npc.position.z < -60) npc.position.z = 10;
     });
 
     if(police) {
       if(police.mixer) police.mixer.update(delta);
-      police.position.x += (player.position.x - police.position.x) * 0.02;
-      police.position.z += (player.position.z - police.position.z) * 0.02;
+      police.position.x += (player.position.x - police.position.x) * 0.03;
+      police.position.z += (player.position.z - police.position.z) * 0.03;
+      police.rotation.y = Math.atan2(player.position.x - police.position.x, player.position.z - police.position.z);
       
       if(player.position.distanceTo(police.position) < 2) {
         isGameOver = true;
