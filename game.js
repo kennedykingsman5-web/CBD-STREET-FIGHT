@@ -4,7 +4,6 @@ let joystickActive = false;
 let joystickStart = { x: 0, y: 0 };
 let gameStarted = false;
 
-// Listen for the Enter Arena button
 document.getElementById('enter-btn').addEventListener('click', () => {
   document.getElementById('welcome-screen').style.display = 'none';
   document.getElementById('ui-layer').style.display = 'flex';
@@ -95,4 +94,4 @@ function animate() {
   if (renderer && scene && camera) {
     renderer.render(scene, camera);
   }
-}
+                              }
